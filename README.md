@@ -10,7 +10,16 @@ Aplicación web para calcular ajustes periódicos utilizando la inflación mensu
 - Cálculo del nuevo monto actualizado.
 - Selección de períodos trimestrales.
 - Historial persistente mediante `localStorage`.
+- Registro manual de pagos históricos, incluso cuando todavía faltan datos para reconstruir el ajuste.
+- Detalle de monto abonado, fecha de pago y diferencia o regularización.
+- Identificación del origen de cada registro: automático BCRA o histórico/manual.
 - Validación de disponibilidad de los tres meses del período.
+
+## Historial real
+
+El formulario manual permite guardar parcialmente la información conocida sin inventar los datos que todavía faltan. La aplicación incorpora como registros iniciales los pagos conocidos de mayo a agosto de 2026, sin atribuir el monto de agosto exclusivamente al IPC de abril-junio ni calcular una regularización no confirmada.
+
+Los registros automáticos y manuales comparten la clave existente `ipcAdjustmentHistory`, por lo que el historial previo continúa siendo legible. Los campos nuevos son opcionales para mantener compatibilidad con registros creados por versiones anteriores.
 
 ## Tecnologías
 

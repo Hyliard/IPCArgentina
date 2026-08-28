@@ -53,12 +53,30 @@ label {
   font-weight: 600;
 }
 
-input {
+input,
+textarea {
   padding: 12px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 16px;
 }
+
+textarea { resize: vertical; font-family: inherit; }
+.form-grid, .payment-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 16px; }
+.full-width { grid-column: 1 / -1; }
+fieldset { border: 1px solid #d1d5db; border-radius: 10px; margin: 0 0 18px; padding: 16px; }
+legend { font-weight: 600; padding: 0 6px; }
+.ipc-manual-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.ipc-manual-grid .form-group { margin: 0; }
+.ipc-manual-grid input + input { margin-top: 8px; }
+.section-heading p, .history-help { color: #6b7280; margin: 4px 0 18px; }
+.history-help { font-size: 14px; }
+.record-heading { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.badge { display: inline-block; border-radius: 999px; padding: 4px 9px; background: #e5e7eb; color: #374151; font-size: 12px; font-weight: 700; }
+.badge.auto { background: #dbeafe; color: #1e40af; }
+.history-details { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px 20px; margin-top: 12px; }
+.history-details p { margin: 0; }
+.difference { color: #9a3412 !important; font-weight: 600; }
 
 .periodo {
   display: grid;
@@ -167,7 +185,11 @@ button:hover {
 
 @media (max-width: 600px) {
   .periodo,
-  .resultado-grid {
+  .resultado-grid,
+  .form-grid,
+  .payment-fields,
+  .ipc-manual-grid,
+  .history-details {
     grid-template-columns: 1fr;
   }
 

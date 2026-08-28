@@ -91,14 +91,74 @@
         </div>
       </div>
 
+      <div class="payment-fields">
+        <div class="form-group">
+          <label for="montoAbonadoAutomatico">Monto efectivamente abonado</label>
+          <input type="number" id="montoAbonadoAutomatico" min="0" step="0.01" placeholder="Si se deja vacío, se usa el nuevo monto" />
+        </div>
+        <div class="form-group">
+          <label for="fechaPagoAutomatico">Fecha del pago</label>
+          <input type="date" id="fechaPagoAutomatico" />
+        </div>
+      </div>
+
       <button id="guardarBtn">
         Guardar ajuste
       </button>
     </section>
 
     <section class="card">
+      <div class="section-heading">
+        <div>
+          <h2>Registrar historial manual</h2>
+          <p>Completa sólo los datos conocidos. Los importes pagados pueden registrarse aunque todavía falte reconstruir el ajuste.</p>
+        </div>
+      </div>
+
+      <form id="historialManualForm">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label for="periodoManual">Período de IPC utilizado</label>
+            <input type="text" id="periodoManual" placeholder="Ej: abril - junio 2026" />
+          </div>
+          <div class="form-group">
+            <label for="montoBaseManual">Monto base anterior</label>
+            <input type="number" id="montoBaseManual" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label for="porcentajeManual">Porcentaje total aplicado</label>
+            <input type="number" id="porcentajeManual" step="0.0001" />
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>IPC mensuales</legend>
+          <div class="ipc-manual-grid">
+            <div class="form-group"><label for="mes1Nombre">Mes 1</label><input type="month" id="mes1Nombre" /><input type="number" id="mes1Valor" step="0.0001" placeholder="IPC %" /></div>
+            <div class="form-group"><label for="mes2Nombre">Mes 2</label><input type="month" id="mes2Nombre" /><input type="number" id="mes2Valor" step="0.0001" placeholder="IPC %" /></div>
+            <div class="form-group"><label for="mes3Nombre">Mes 3</label><input type="month" id="mes3Nombre" /><input type="number" id="mes3Valor" step="0.0001" placeholder="IPC %" /></div>
+          </div>
+        </fieldset>
+
+        <div class="form-grid">
+          <div class="form-group"><label for="aumentoManual">Aumento calculado</label><input type="number" id="aumentoManual" step="0.01" /></div>
+          <div class="form-group"><label for="nuevoMontoManual">Nuevo monto mensual</label><input type="number" id="nuevoMontoManual" min="0" step="0.01" /></div>
+          <div class="form-group"><label for="montoAbonadoManual">Monto efectivamente abonado *</label><input type="number" id="montoAbonadoManual" min="0" step="0.01" required /></div>
+          <div class="form-group"><label for="diferenciaManual">Diferencia / regularización</label><input type="number" id="diferenciaManual" step="0.01" placeholder="Se calcula si hay nuevo monto" /></div>
+          <div class="form-group"><label for="fechaPagoManual">Fecha del pago *</label><input type="date" id="fechaPagoManual" required /></div>
+        </div>
+
+        <div class="form-group">
+          <label for="notasManual">Notas</label>
+          <textarea id="notasManual" rows="3" placeholder="Ej: pago provisorio; IPC pendiente; incluye regularización anterior"></textarea>
+        </div>
+        <button type="submit">Guardar registro manual</button>
+      </form>
+    </section>
+
+    <section class="card">
       <div class="historial-header">
-        <h2>Historial de ajustes</h2>
+        <div><h2>Historial real de manutención</h2><p class="history-help">Pagos y ajustes, ordenados por fecha.</p></div>
 
         <button
           id="borrarHistorialBtn"

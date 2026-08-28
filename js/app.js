@@ -23,6 +23,22 @@ const nuevoMontoResultado = document.getElementById(
 );
 
 const historialContainer = document.getElementById("historial");
+const historialManualForm = document.getElementById("historialManualForm");
+const montoAbonadoAutomatico = document.getElementById("montoAbonadoAutomatico");
+const fechaPagoAutomatico = document.getElementById("fechaPagoAutomatico");
+
+const STORAGE_KEY = "ipcAdjustmentHistory";
+const INITIALIZED_KEY = "ipcAdjustmentHistoryInitialized";
+const PAGOS_INICIALES = [
+  { fechaPago: "2026-05-07", montoAbonado: 300282 },
+  { fechaPago: "2026-06-06", montoAbonado: 300282 },
+  { fechaPago: "2026-07-03", montoAbonado: 300282 },
+  {
+    fechaPago: "2026-08-05",
+    montoAbonado: 339918,
+    notas: "Composición pendiente de reconstruir; puede incluir una regularización anterior.",
+  },
+];
 
 let ultimoCalculo = null;
 
@@ -36,6 +52,33 @@ const formatterPorcentaje = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 4,
 });
+
+function esNumero(valor) {
+  return typeof valor === "number" && Number.isFinite(valor);
+}
+
+function numeroOpcional(valor) {
+  return valor === "" ? null : Number(valor);
+}
+
+function formatearMonto(valor) {
+  return esNumero(valor) ? formatterARS.format(valor) : "Pendiente";
+}
+
+function formatearPorcentaje(valor) {
+  return esNumero(valor) ? `${formatterPorcentaje.format(valor)} %` : "Pendiente";
+}
+
+function fechaLocal(fecha) {
+  if (!fecha) return "Fecha pendiente";
+  return new Date(`${fecha.slice(0, 10)}T12:00:00`).toLocaleDateString("es-AR");
+}
+
+function escaparHTML(texto = "") {
+  const div = document.createElement("div");
+  div.textContent = texto;
+  return div.innerHTML;
+}
 
 const nombresMeses = [
   "Enero",
@@ -224,7 +267,7 @@ function mostrarDetalleMeses(meses) {
 function obtenerHistorial() {
   const historialGuardado =
     localStorage.getItem(
-      "ipcAdjustmentHistory"
+      STORAGE_KEY
     );
 
   if (!historialGuardado) {
@@ -242,9 +285,28 @@ function obtenerHistorial() {
 
 function guardarHistorial(historial) {
   localStorage.setItem(
-    "ipcAdjustmentHistory",
+    STORAGE_KEY,
     JSON.stringify(historial)
   );
+}
+
+function inicializarPagosConocidos() {
+  if (localStorage.getItem(STORAGE_KEY) !== null || localStorage.getItem(INITIALIZED_KEY)) return;
+
+  guardarHistorial(PAGOS_INICIALES.map((pago) => ({
+    id: `inicial-${pago.fechaPago}`,
+    tipo: "manual",
+    periodoIPC: null,
+    montoAnterior: null,
+    meses: [],
+    ipcAcumulado: null,
+    aumento: null,
+    nuevoMonto: null,
+    diferencia: null,
+    ...pago,
+    fechaRegistro: new Date().toISOString(),
+  })));
+  localStorage.setItem(INITIALIZED_KEY, "1");
 }
 
 function renderizarHistorial() {
@@ -265,7 +327,7 @@ function renderizarHistorial() {
 
   historial
     .slice()
-    .reverse()
+    .sort((a, b) => String(b.fechaPago || b.fechaCalculo || "").localeCompare(String(a.fechaPago || a.fechaCalculo || "")))
     .forEach((ajuste) => {
       const item =
         document.createElement("div");
@@ -274,40 +336,27 @@ function renderizarHistorial() {
         "historial-item"
       );
 
+      const tipo = ajuste.tipo === "manual" ? "Histórico / manual" : "Automático BCRA";
+      const periodo = ajuste.periodoIPC || ajuste.nombreTrimestre || "Período pendiente";
+      const meses = Array.isArray(ajuste.meses) && ajuste.meses.length
+        ? ajuste.meses.map((mes, indice) => `${mes.fecha ? obtenerNombreMes(mes.fecha) : `Mes ${indice + 1}`}: ${formatearPorcentaje(esNumero(mes.valor) ? mes.valor : null)}`).join(" · ")
+        : "IPC mensuales pendientes";
+      const diferencia = esNumero(ajuste.diferencia)
+        ? `<p class="difference">Diferencia / regularización: ${formatearMonto(ajuste.diferencia)}</p>`
+        : "";
+
       item.innerHTML = `
-        <strong>
-          ${ajuste.nombreTrimestre}
-        </strong>
-
-        <p>
-          Monto anterior:
-          ${formatterARS.format(
-            ajuste.montoAnterior
-          )}
-        </p>
-
-        <p>
-          IPC acumulado:
-          ${formatterPorcentaje.format(
-            ajuste.ipcAcumulado
-          )} %
-        </p>
-
-        <p>
-          Aumento:
-          ${formatterARS.format(
-            ajuste.aumento
-          )}
-        </p>
-
-        <p>
-          Nuevo monto:
-          <strong>
-            ${formatterARS.format(
-              ajuste.nuevoMonto
-            )}
-          </strong>
-        </p>
+        <div class="record-heading"><strong>${escaparHTML(periodo)}</strong><span class="badge ${ajuste.tipo === "manual" ? "" : "auto"}">${tipo}</span></div>
+        <p>Pago: <strong>${formatearMonto(ajuste.montoAbonado)}</strong> · ${fechaLocal(ajuste.fechaPago)}</p>
+        <p>${escaparHTML(meses)}</p>
+        <div class="history-details">
+          <p>Monto base: ${formatearMonto(ajuste.montoAnterior)}</p>
+          <p>IPC total: ${formatearPorcentaje(ajuste.ipcAcumulado)}</p>
+          <p>Aumento: ${formatearMonto(ajuste.aumento)}</p>
+          <p>Nuevo monto mensual: ${formatearMonto(ajuste.nuevoMonto)}</p>
+          ${diferencia}
+        </div>
+        ${ajuste.notas ? `<p><em>${escaparHTML(ajuste.notas)}</em></p>` : ""}
       `;
 
       historialContainer.appendChild(
@@ -387,7 +436,10 @@ async function calcularAjuste() {
       ].textContent;
 
     ultimoCalculo = {
+      id: `automatico-${Date.now()}`,
+      tipo: "automatico",
       nombreTrimestre,
+      periodoIPC: nombreTrimestre,
       periodoDesde:
         periodo.desde,
       periodoHasta:
@@ -476,6 +528,11 @@ function guardarAjuste() {
     }
   }
 
+  const montoAbonado = numeroOpcional(montoAbonadoAutomatico.value);
+  ultimoCalculo.montoAbonado = montoAbonado ?? ultimoCalculo.nuevoMonto;
+  ultimoCalculo.fechaPago = fechaPagoAutomatico.value || new Date().toISOString().slice(0, 10);
+  ultimoCalculo.diferencia = ultimoCalculo.nuevoMonto - ultimoCalculo.montoAbonado;
+
   historial.push(
     ultimoCalculo
   );
@@ -492,6 +549,42 @@ function guardarAjuste() {
   alert(
     "Ajuste guardado correctamente."
   );
+}
+
+function guardarRegistroManual(event) {
+  event.preventDefault();
+
+  const valor = (id) => document.getElementById(id).value;
+  const montoAbonado = numeroOpcional(valor("montoAbonadoManual"));
+  const nuevoMonto = numeroOpcional(valor("nuevoMontoManual"));
+  const diferenciaIngresada = numeroOpcional(valor("diferenciaManual"));
+  const meses = [1, 2, 3].map((numero) => ({
+    fecha: valor(`mes${numero}Nombre`) ? `${valor(`mes${numero}Nombre`)}-01` : "",
+    valor: numeroOpcional(valor(`mes${numero}Valor`)),
+  })).filter((mes) => mes.fecha || esNumero(mes.valor));
+
+  const registro = {
+    id: `manual-${Date.now()}`,
+    tipo: "manual",
+    periodoIPC: valor("periodoManual").trim() || null,
+    montoAnterior: numeroOpcional(valor("montoBaseManual")),
+    meses,
+    ipcAcumulado: numeroOpcional(valor("porcentajeManual")),
+    aumento: numeroOpcional(valor("aumentoManual")),
+    nuevoMonto,
+    montoAbonado,
+    diferencia: diferenciaIngresada ?? (esNumero(nuevoMonto) ? nuevoMonto - montoAbonado : null),
+    fechaPago: valor("fechaPagoManual"),
+    notas: valor("notasManual").trim(),
+    fechaRegistro: new Date().toISOString(),
+  };
+
+  const historial = obtenerHistorial();
+  historial.push(registro);
+  guardarHistorial(historial);
+  historialManualForm.reset();
+  renderizarHistorial();
+  alert("Registro manual guardado correctamente.");
 }
 
 function borrarHistorial() {
@@ -513,8 +606,9 @@ function borrarHistorial() {
   }
 
   localStorage.removeItem(
-    "ipcAdjustmentHistory"
+    STORAGE_KEY
   );
+  localStorage.setItem(INITIALIZED_KEY, "1");
 
   renderizarHistorial();
 }
@@ -534,5 +628,8 @@ borrarHistorialBtn.addEventListener(
   borrarHistorial
 );
 
+historialManualForm.addEventListener("submit", guardarRegistroManual);
+
 generarTrimestres();
+inicializarPagosConocidos();
 renderizarHistorial();
