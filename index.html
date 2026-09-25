@@ -15,7 +15,7 @@
     <h1>Calculadora de Ajuste por IPC</h1>
     
     <p>
-        Seguimiento de actualizaciones trimestrales con datos oficiales del BCRA
+        Seguimiento de actualizaciones periódicas con datos oficiales del BCRA
     </p>
     </header>
 
@@ -36,13 +36,31 @@
         />
       </div>
 
-      <div class="form-group">
-        <label for="trimestre">
-          Trimestre
-        </label>
+      <div class="periodo-grid">
+        <div class="form-group">
+          <label for="mesInicio">Mes inicial</label>
+          <select id="mesInicio"></select>
+        </div>
 
-        <select id="trimestre"></select>
+        <div class="form-group">
+          <label for="anioInicio">Año</label>
+          <select id="anioInicio"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="cantidadMeses">Cantidad de meses</label>
+          <select id="cantidadMeses">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="6">6</option>
+            <option value="12">12</option>
+          </select>
+        </div>
       </div>
+
+      <p id="periodoResumen" class="periodo-resumen"></p>
 
       <button id="calcularBtn">
         Calcular ajuste
@@ -127,7 +145,7 @@
           </div>
           <div class="form-group">
             <label for="porcentajeManual">Porcentaje total aplicado</label>
-            <input type="number" id="porcentajeManual" step="0.0001" />
+            <input type="number" id="porcentajeManual" step="0.0001" placeholder="Se calcula con los 3 IPC" />
           </div>
         </div>
 
@@ -141,8 +159,8 @@
         </fieldset>
 
         <div class="form-grid">
-          <div class="form-group"><label for="aumentoManual">Aumento calculado</label><input type="number" id="aumentoManual" step="0.01" /></div>
-          <div class="form-group"><label for="nuevoMontoManual">Nuevo monto mensual</label><input type="number" id="nuevoMontoManual" min="0" step="0.01" /></div>
+          <div class="form-group"><label for="aumentoManual">Aumento calculado</label><input type="number" id="aumentoManual" step="0.01" placeholder="Se calcula con base y %" /></div>
+          <div class="form-group"><label for="nuevoMontoManual">Nuevo monto mensual</label><input type="number" id="nuevoMontoManual" min="0" step="0.01" placeholder="Se calcula con base y %" /></div>
           <div class="form-group"><label for="montoAbonadoManual">Monto efectivamente abonado *</label><input type="number" id="montoAbonadoManual" min="0" step="0.01" required /></div>
           <div class="form-group"><label for="diferenciaManual">Diferencia / regularización</label><input type="number" id="diferenciaManual" step="0.01" placeholder="Se calcula si hay nuevo monto" /></div>
           <div class="form-group"><label for="fechaPagoManual">Fecha del pago *</label><input type="date" id="fechaPagoManual" required /></div>
@@ -160,12 +178,12 @@
       <div class="historial-header">
         <div><h2>Historial real de manutención</h2><p class="history-help">Pagos y ajustes, ordenados por fecha.</p></div>
 
-        <button
-          id="borrarHistorialBtn"
-          class="secondary"
-        >
-          Borrar historial
-        </button>
+        <div class="historial-actions">
+          <button id="exportarHistorialBtn" class="secondary" type="button">Exportar</button>
+          <button id="importarHistorialBtn" class="secondary" type="button">Importar</button>
+          <input type="file" id="importarHistorialInput" accept="application/json,.json" hidden />
+          <button id="borrarHistorialBtn" class="secondary" type="button">Borrar historial</button>
+        </div>
       </div>
 
       <div id="historial">

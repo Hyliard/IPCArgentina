@@ -8,12 +8,12 @@ Aplicación web para calcular ajustes periódicos utilizando la inflación mensu
 - Cálculo de IPC acumulado mediante composición mensual.
 - Cálculo del aumento en pesos.
 - Cálculo del nuevo monto actualizado.
-- Selección de períodos trimestrales.
+- Selección libre del período: mes inicial, año y cantidad de meses (1, 2, 3, 4, 6 o 12).
 - Historial persistente mediante `localStorage`.
 - Registro manual de pagos históricos, incluso cuando todavía faltan datos para reconstruir el ajuste.
 - Detalle de monto abonado, fecha de pago y diferencia o regularización.
 - Identificación del origen de cada registro: automático BCRA o histórico/manual.
-- Validación de disponibilidad de los tres meses del período.
+- Validación de disponibilidad de todos los meses del período.
 
 ## Historial real
 
@@ -51,19 +51,26 @@ Factor acumulado =
 
 IPC acumulado =
 (Factor acumulado - 1) × 100
+```
 
+### Ejemplo
 
-Ejemplo
 Para:
-Abril: 2,6 %
-Mayo: 2,1 %
-Junio: 1,9 %
-IPC acumulado:
-6,7449 %
-Si el monto anterior es:
-$255.561,00
-el nuevo monto resulta aproximadamente:
-$272.798,43
-Autor
+
+- Abril: 2,6 %
+- Mayo: 2,1 %
+- Junio: 1,9 %
+
+IPC acumulado: **6,7449 %**
+
+Si el monto anterior es **$255.561,00**, el nuevo monto resulta aproximadamente **$272.798,43**.
+
+## Respaldo del historial
+
+El historial se guarda sólo en el navegador. Usa **Exportar** para descargar un archivo JSON y **Importar** para restaurarlo (reemplaza el historial actual).
+
+## Autor
+
 Luis Gerardo Martinez Hernandez
+
 GitHub: Hyliard

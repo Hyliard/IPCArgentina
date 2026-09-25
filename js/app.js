@@ -1,8 +1,11 @@
 import { obtenerInflacion } from "./api.js";
-import { calcularIPC, calcularNuevoMonto } from "./ipc.js";
+import { calcularIPC, calcularNuevoMonto, redondearMonto } from "./ipc.js";
 
 const montoBaseInput = document.getElementById("montoBase");
-const trimestreSelect = document.getElementById("trimestre");
+const mesInicioSelect = document.getElementById("mesInicio");
+const anioInicioSelect = document.getElementById("anioInicio");
+const cantidadMesesSelect = document.getElementById("cantidadMeses");
+const periodoResumen = document.getElementById("periodoResumen");
 
 const calcularBtn = document.getElementById("calcularBtn");
 const guardarBtn = document.getElementById("guardarBtn");
@@ -26,6 +29,9 @@ const historialContainer = document.getElementById("historial");
 const historialManualForm = document.getElementById("historialManualForm");
 const montoAbonadoAutomatico = document.getElementById("montoAbonadoAutomatico");
 const fechaPagoAutomatico = document.getElementById("fechaPagoAutomatico");
+const exportarHistorialBtn = document.getElementById("exportarHistorialBtn");
+const importarHistorialBtn = document.getElementById("importarHistorialBtn");
+const importarHistorialInput = document.getElementById("importarHistorialInput");
 
 const STORAGE_KEY = "ipcAdjustmentHistory";
 const INITIALIZED_KEY = "ipcAdjustmentHistoryInitialized";
@@ -71,7 +77,8 @@ function formatearPorcentaje(valor) {
 
 function fechaLocal(fecha) {
   if (!fecha) return "Fecha pendiente";
-  return new Date(`${fecha.slice(0, 10)}T12:00:00`).toLocaleDateString("es-AR");
+  const date = new Date(`${String(fecha).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? "Fecha inválida" : date.toLocaleDateString("es-AR");
 }
 
 function escaparHTML(texto = "") {
@@ -99,118 +106,61 @@ function pad(numero) {
   return String(numero).padStart(2, "0");
 }
 
-function obtenerUltimoDiaMes(anio, mes) {
-  return new Date(
-    anio,
-    mes,
-    0
-  ).getDate();
-}
+function generarSelectoresPeriodo() {
+  nombresMeses.forEach((nombre, indice) => {
+    mesInicioSelect.add(new Option(nombre, indice + 1));
+  });
 
-function generarTrimestres() {
   const anioActual = new Date().getFullYear();
-
-  const desdeAnio = anioActual - 3;
-  const hastaAnio = anioActual + 2;
-
-  trimestreSelect.innerHTML = "";
-
-  for (let anio = desdeAnio; anio <= hastaAnio; anio++) {
-    const trimestres = [
-      {
-        inicio: 1,
-        fin: 3,
-      },
-      {
-        inicio: 4,
-        fin: 6,
-      },
-      {
-        inicio: 7,
-        fin: 9,
-      },
-      {
-        inicio: 10,
-        fin: 12,
-      },
-    ];
-
-    trimestres.forEach((trimestre) => {
-      const option = document.createElement("option");
-
-      const mesInicio = nombresMeses[
-        trimestre.inicio - 1
-      ];
-
-      const mesFin = nombresMeses[
-        trimestre.fin - 1
-      ];
-
-      option.value =
-        `${anio}-${pad(trimestre.inicio)}`;
-
-      option.textContent =
-        `${mesInicio} - ${mesFin} ${anio}`;
-
-      trimestreSelect.appendChild(option);
-    });
+  for (let anio = anioActual; anio >= anioActual - 10; anio--) {
+    anioInicioSelect.add(new Option(anio, anio));
   }
 
-  seleccionarTrimestreActual();
+  seleccionarPeriodoPorDefecto();
+  actualizarResumenPeriodo();
 }
 
-function seleccionarTrimestreActual() {
+// Defaults to the months ending last month, the most recent that may already be published.
+function seleccionarPeriodoPorDefecto() {
   const hoy = new Date();
+  const inicio = new Date(
+    hoy.getFullYear(),
+    hoy.getMonth() - Number(cantidadMesesSelect.value),
+    1
+  );
 
-  const anio = hoy.getFullYear();
-  const mes = hoy.getMonth() + 1;
-
-  let mesInicioTrimestre;
-
-  if (mes <= 3) {
-    mesInicioTrimestre = 1;
-  } else if (mes <= 6) {
-    mesInicioTrimestre = 4;
-  } else if (mes <= 9) {
-    mesInicioTrimestre = 7;
-  } else {
-    mesInicioTrimestre = 10;
-  }
-
-  const valor = `${anio}-${pad(
-    mesInicioTrimestre
-  )}`;
-
-  trimestreSelect.value = valor;
+  mesInicioSelect.value = inicio.getMonth() + 1;
+  anioInicioSelect.value = inicio.getFullYear();
 }
 
-function obtenerPeriodoTrimestre(valorTrimestre) {
-  const [anio, mesInicio] =
-    valorTrimestre.split("-").map(Number);
+function obtenerPeriodo() {
+  const anio = Number(anioInicioSelect.value);
+  const mes = Number(mesInicioSelect.value);
+  const cantidad = Number(cantidadMesesSelect.value);
 
-  const mesFin = mesInicio + 2;
+  const inicio = new Date(anio, mes - 1, 1);
+  const fin = new Date(anio, mes - 1 + cantidad, 0);
 
-  const ultimoDia =
-    obtenerUltimoDiaMes(
-      anio,
-      mesFin
-    );
-
-  const desde =
-    `${anio}-${pad(mesInicio)}-01`;
-
-  const hasta =
-    `${anio}-${pad(mesFin)}-${pad(
-      ultimoDia
-    )}`;
+  const iso = (fecha) =>
+    `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}`;
+  const nombreMes = (fecha) =>
+    fecha.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
 
   return {
-    anio,
-    mesInicio,
-    mesFin,
-    desde,
-    hasta,
+    cantidad,
+    fin,
+    desde: iso(inicio),
+    hasta: iso(fin),
+    nombre: cantidad === 1
+      ? nombreMes(inicio)
+      : `${nombreMes(inicio)} - ${nombreMes(fin)}`,
   };
+}
+
+function actualizarResumenPeriodo() {
+  const periodo = obtenerPeriodo();
+  periodoResumen.textContent =
+    `Se usará el IPC de ${periodo.nombre} (${periodo.cantidad} ${periodo.cantidad === 1 ? "mes" : "meses"}).`;
 }
 
 function obtenerNombreMes(fecha) {
@@ -275,9 +225,19 @@ function obtenerHistorial() {
   }
 
   try {
-    return JSON.parse(
-      historialGuardado
-    );
+    const historial = JSON.parse(historialGuardado);
+    if (!Array.isArray(historial)) return [];
+
+    let faltabanIds = false;
+    historial.forEach((registro, indice) => {
+      if (!registro.id) {
+        registro.id = `legacy-${Date.now()}-${indice}`;
+        faltabanIds = true;
+      }
+    });
+    if (faltabanIds) guardarHistorial(historial);
+
+    return historial;
   } catch {
     return [];
   }
@@ -356,8 +316,15 @@ function renderizarHistorial() {
           <p>Nuevo monto mensual: ${formatearMonto(ajuste.nuevoMonto)}</p>
           ${diferencia}
         </div>
-        ${ajuste.notas ? `<p><em>${escaparHTML(ajuste.notas)}</em></p>` : ""}
+        ${ajuste.notas ? `<p><em>${escaparHTML(String(ajuste.notas))}</em></p>` : ""}
       `;
+
+      const eliminarBtn = document.createElement("button");
+      eliminarBtn.type = "button";
+      eliminarBtn.className = "danger-link";
+      eliminarBtn.textContent = "Eliminar";
+      eliminarBtn.dataset.id = ajuste.id;
+      item.appendChild(eliminarBtn);
 
       historialContainer.appendChild(
         item
@@ -365,12 +332,103 @@ function renderizarHistorial() {
     });
 }
 
+function eliminarRegistro(event) {
+  const boton = event.target.closest("button[data-id]");
+  if (!boton) return;
+
+  if (!confirm("¿Eliminar este registro del historial?")) return;
+
+  guardarHistorial(
+    obtenerHistorial().filter((registro) => registro.id !== boton.dataset.id)
+  );
+  renderizarHistorial();
+}
+
+function exportarHistorial() {
+  const blob = new Blob(
+    [JSON.stringify(obtenerHistorial(), null, 2)],
+    { type: "application/json" }
+  );
+  const enlace = document.createElement("a");
+  enlace.href = URL.createObjectURL(blob);
+  enlace.download = `historial-ipc-${new Date().toISOString().slice(0, 10)}.json`;
+  enlace.click();
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 0);
+}
+
+async function importarHistorial() {
+  const archivo = importarHistorialInput.files[0];
+  importarHistorialInput.value = "";
+  if (!archivo) return;
+
+  try {
+    const datos = JSON.parse(await archivo.text());
+
+    if (
+      !Array.isArray(datos) ||
+      !datos.every((registro) => registro && typeof registro === "object" && !Array.isArray(registro))
+    ) {
+      throw new Error("Formato inválido");
+    }
+
+    if (!confirm(`Se importarán ${datos.length} registro(s) y se reemplazará el historial actual. ¿Continuar?`)) return;
+
+    guardarHistorial(datos);
+    localStorage.setItem(INITIALIZED_KEY, "1");
+    renderizarHistorial();
+  } catch {
+    alert("El archivo no es un historial válido.");
+  }
+}
+
+function invalidarCalculo() {
+  ultimoCalculo = null;
+  resultadoSection.classList.add("hidden");
+}
+
+function precargarMontoVigente() {
+  if (montoBaseInput.value) return;
+
+  const ultimo = obtenerHistorial()
+    .filter((registro) => esNumero(registro.nuevoMonto))
+    .sort((a, b) => String(b.fechaPago || b.fechaCalculo || "").localeCompare(String(a.fechaPago || a.fechaCalculo || "")))[0];
+
+  if (ultimo) montoBaseInput.value = ultimo.nuevoMonto.toFixed(2);
+}
+
+function calcularCamposManuales() {
+  const valor = (id) => numeroOpcional(document.getElementById(id).value);
+  const ipcMensuales = [1, 2, 3].map((numero) => valor(`mes${numero}Valor`));
+  const montoBase = valor("montoBaseManual");
+
+  const ipc = valor("porcentajeManual") ??
+    (ipcMensuales.every(esNumero) ? calcularIPC(ipcMensuales.map((v) => ({ valor: v }))) : null);
+  const nuevoMonto = valor("nuevoMontoManual") ??
+    (esNumero(montoBase) && esNumero(ipc) ? calcularNuevoMonto(montoBase, ipc) : null);
+  const aumento = valor("aumentoManual") ??
+    (esNumero(montoBase) && esNumero(nuevoMonto) ? redondearMonto(nuevoMonto - montoBase) : null);
+
+  return { ipc, nuevoMonto, aumento };
+}
+
+function actualizarSugerenciasManuales() {
+  const { ipc, nuevoMonto, aumento } = calcularCamposManuales();
+  const sugerir = (id, calculado, porDefecto, decimales) => {
+    document.getElementById(id).placeholder = esNumero(calculado)
+      ? `Calculado: ${calculado.toFixed(decimales)}`
+      : porDefecto;
+  };
+
+  sugerir("porcentajeManual", ipc, "Se calcula con los 3 IPC", 4);
+  sugerir("nuevoMontoManual", nuevoMonto, "Se calcula con base y %", 2);
+  sugerir("aumentoManual", aumento, "Se calcula con base y %", 2);
+}
+
 async function calcularAjuste() {
   const montoBase =
     Number(montoBaseInput.value);
 
-  const trimestre =
-    trimestreSelect.value;
+  const periodo = obtenerPeriodo();
 
   if (!montoBase || montoBase <= 0) {
     alert(
@@ -380,9 +438,10 @@ async function calcularAjuste() {
     return;
   }
 
-  if (!trimestre) {
+  const hoy = new Date();
+  if (periodo.fin >= new Date(hoy.getFullYear(), hoy.getMonth(), 1)) {
     alert(
-      "Selecciona un trimestre."
+      "El período incluye el mes en curso o meses futuros, que todavía no tienen IPC publicado."
     );
 
     return;
@@ -394,11 +453,6 @@ async function calcularAjuste() {
     calcularBtn.textContent =
       "Consultando BCRA...";
 
-    const periodo =
-      obtenerPeriodoTrimestre(
-        trimestre
-      );
-
     const meses =
       await obtenerInflacion(
         periodo.desde,
@@ -407,14 +461,14 @@ async function calcularAjuste() {
 
     if (meses.length === 0) {
       throw new Error(
-        "El BCRA no devolvió datos para ese trimestre."
+        "El BCRA no devolvió datos para ese período."
       );
     }
 
-    if (meses.length !== 3) {
+    if (meses.length !== periodo.cantidad) {
       throw new Error(
-        `El BCRA devolvió ${meses.length} mes(es). ` +
-        "El trimestre todavía no tiene los 3 IPC publicados."
+        `El BCRA devolvió ${meses.length} de ${periodo.cantidad} mes(es). ` +
+        "Probablemente el último IPC del período todavía no fue publicado."
       );
     }
 
@@ -428,18 +482,12 @@ async function calcularAjuste() {
       );
 
     const aumento =
-      nuevoMonto - montoBase;
-
-    const nombreTrimestre =
-      trimestreSelect.options[
-        trimestreSelect.selectedIndex
-      ].textContent;
+      redondearMonto(nuevoMonto - montoBase);
 
     ultimoCalculo = {
       id: `automatico-${Date.now()}`,
       tipo: "automatico",
-      nombreTrimestre,
-      periodoIPC: nombreTrimestre,
+      periodoIPC: periodo.nombre,
       periodoDesde:
         periodo.desde,
       periodoHasta:
@@ -514,12 +562,14 @@ function guardarAjuste() {
     historial.some(
       (ajuste) =>
         ajuste.periodoDesde ===
-        ultimoCalculo.periodoDesde
+        ultimoCalculo.periodoDesde &&
+        ajuste.periodoHasta ===
+        ultimoCalculo.periodoHasta
     );
 
   if (yaExiste) {
     const confirmar = confirm(
-      "Ya existe un ajuste guardado para este trimestre. " +
+      "Ya existe un ajuste guardado para este período. " +
       "¿Quieres guardarlo de todos modos?"
     );
 
@@ -531,7 +581,7 @@ function guardarAjuste() {
   const montoAbonado = numeroOpcional(montoAbonadoAutomatico.value);
   ultimoCalculo.montoAbonado = montoAbonado ?? ultimoCalculo.nuevoMonto;
   ultimoCalculo.fechaPago = fechaPagoAutomatico.value || new Date().toISOString().slice(0, 10);
-  ultimoCalculo.diferencia = ultimoCalculo.nuevoMonto - ultimoCalculo.montoAbonado;
+  ultimoCalculo.diferencia = redondearMonto(ultimoCalculo.nuevoMonto - ultimoCalculo.montoAbonado);
 
   historial.push(
     ultimoCalculo
@@ -545,6 +595,9 @@ function guardarAjuste() {
 
   montoBaseInput.value =
     ultimoCalculo.nuevoMonto.toFixed(2);
+  montoAbonadoAutomatico.value = "";
+  fechaPagoAutomatico.value = "";
+  invalidarCalculo();
 
   alert(
     "Ajuste guardado correctamente."
@@ -556,7 +609,7 @@ function guardarRegistroManual(event) {
 
   const valor = (id) => document.getElementById(id).value;
   const montoAbonado = numeroOpcional(valor("montoAbonadoManual"));
-  const nuevoMonto = numeroOpcional(valor("nuevoMontoManual"));
+  const { ipc, nuevoMonto, aumento } = calcularCamposManuales();
   const diferenciaIngresada = numeroOpcional(valor("diferenciaManual"));
   const meses = [1, 2, 3].map((numero) => ({
     fecha: valor(`mes${numero}Nombre`) ? `${valor(`mes${numero}Nombre`)}-01` : "",
@@ -569,11 +622,11 @@ function guardarRegistroManual(event) {
     periodoIPC: valor("periodoManual").trim() || null,
     montoAnterior: numeroOpcional(valor("montoBaseManual")),
     meses,
-    ipcAcumulado: numeroOpcional(valor("porcentajeManual")),
-    aumento: numeroOpcional(valor("aumentoManual")),
+    ipcAcumulado: ipc,
+    aumento,
     nuevoMonto,
     montoAbonado,
-    diferencia: diferenciaIngresada ?? (esNumero(nuevoMonto) ? nuevoMonto - montoAbonado : null),
+    diferencia: diferenciaIngresada ?? (esNumero(nuevoMonto) ? redondearMonto(nuevoMonto - montoAbonado) : null),
     fechaPago: valor("fechaPagoManual"),
     notas: valor("notasManual").trim(),
     fechaRegistro: new Date().toISOString(),
@@ -583,6 +636,7 @@ function guardarRegistroManual(event) {
   historial.push(registro);
   guardarHistorial(historial);
   historialManualForm.reset();
+  actualizarSugerenciasManuales();
   renderizarHistorial();
   alert("Registro manual guardado correctamente.");
 }
@@ -629,7 +683,20 @@ borrarHistorialBtn.addEventListener(
 );
 
 historialManualForm.addEventListener("submit", guardarRegistroManual);
+historialManualForm.addEventListener("input", actualizarSugerenciasManuales);
+historialContainer.addEventListener("click", eliminarRegistro);
+exportarHistorialBtn.addEventListener("click", exportarHistorial);
+importarHistorialBtn.addEventListener("click", () => importarHistorialInput.click());
+importarHistorialInput.addEventListener("change", importarHistorial);
+montoBaseInput.addEventListener("input", invalidarCalculo);
+[mesInicioSelect, anioInicioSelect, cantidadMesesSelect].forEach((select) => {
+  select.addEventListener("change", () => {
+    invalidarCalculo();
+    actualizarResumenPeriodo();
+  });
+});
 
-generarTrimestres();
+generarSelectoresPeriodo();
 inicializarPagosConocidos();
 renderizarHistorial();
+precargarMontoVigente();

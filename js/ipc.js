@@ -10,6 +10,10 @@ export function calcularIPC(meses) {
   return (factorAcumulado - 1) * 100;
 }
 
+export function redondearMonto(valor) {
+  return Math.round((valor + Number.EPSILON) * 100) / 100;
+}
+
 export function calcularNuevoMonto(montoBase, ipcAcumulado) {
-  return montoBase * (1 + ipcAcumulado / 100);
+  return redondearMonto(montoBase * (1 + ipcAcumulado / 100));
 }
